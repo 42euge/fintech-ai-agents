@@ -14,16 +14,15 @@ _MODULE_DIR = pathlib.Path(__file__).parent
 load_dotenv(_MODULE_DIR / ".env")   # ignored silently if not present
 DB_PATH = str(_MODULE_DIR / "stocks.db")
 
-# ── Secrets (st.secrets when deployed, env vars locally) ──────
-def _secret(key: str) -> str:
-    try:
-        import streamlit as st
-        return st.secrets.get(key, os.getenv(key, ""))
-    except Exception:
-        return os.getenv(key, "")
-
-OPENAI_API_KEY       = _secret("OPENAI_API_KEY")
-ALPHAVANTAGE_API_KEY = _secret("ALPHAVANTAGE_API_KEY")
+# ── Secrets ───────────────────────────────────────────────────
+# At import time, try st.secrets first (Streamlit Cloud), then env vars (local).
+try:
+    import streamlit as _st
+    OPENAI_API_KEY       = _st.secrets["OPENAI_API_KEY"]
+    ALPHAVANTAGE_API_KEY = _st.secrets["ALPHAVANTAGE_API_KEY"]
+except Exception:
+    OPENAI_API_KEY       = os.getenv("OPENAI_API_KEY", "")
+    ALPHAVANTAGE_API_KEY = os.getenv("ALPHAVANTAGE_API_KEY", "")
 
 MODEL_SMALL = "gpt-4o-mini"
 MODEL_LARGE = "gpt-4o"
@@ -57,21 +56,21 @@ def get_price_performance(tickers: list, period: str = "1y") -> dict:
 def get_market_status() -> dict:
     return requests.get(
         f"https://www.alphavantage.co/query?function=MARKET_STATUS"
-        f"&apikey={_secret('ALPHAVANTAGE_API_KEY')}", timeout=10
+        f"&apikey={ALPHAVANTAGE_API_KEY}", timeout=10
     ).json()
 
 
 def get_top_gainers_losers() -> dict:
     return requests.get(
         f"https://www.alphavantage.co/query?function=TOP_GAINERS_LOSERS"
-        f"&apikey={_secret('ALPHAVANTAGE_API_KEY')}", timeout=10
+        f"&apikey={ALPHAVANTAGE_API_KEY}", timeout=10
     ).json()
 
 
 def get_news_sentiment(ticker: str, limit: int = 5) -> dict:
     data = requests.get(
         f"https://www.alphavantage.co/query?function=NEWS_SENTIMENT"
-        f"&tickers={ticker}&limit={limit}&apikey={_secret('ALPHAVANTAGE_API_KEY')}", timeout=10
+        f"&tickers={ticker}&limit={limit}&apikey={ALPHAVANTAGE_API_KEY}", timeout=10
     ).json()
     return {
         "ticker": ticker,
@@ -100,7 +99,7 @@ def query_local_db(sql: str) -> dict:
 def get_company_overview(ticker: str) -> dict:
     url = (
         f"https://www.alphavantage.co/query?function=OVERVIEW"
-        f"&symbol={ticker}&apikey={_secret('ALPHAVANTAGE_API_KEY')}"
+        f"&symbol={ticker}&apikey={ALPHAVANTAGE_API_KEY}"
     )
     data = requests.get(url, timeout=10).json()
     if "Name" in data:
